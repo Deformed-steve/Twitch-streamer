@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>M3U8 Player</title>
+  <style>
+    body { font-family: sans-serif; background:#0f1724; color:#e6eef8; padding:20px; }
+    input { width:70%; padding:8px; }
+    button { padding:8px 12px; margin-left:6px; }
+  </style>
+</head>
+<body>
+  <h1>M3U8 Player (Node.js)</h1>
+  <input id="url" placeholder="Paste .m3u8 URL" />
+  <button id="play">Play</button>
+
+  <script>
+    document.getElementById("play").onclick = () => {
+      const u = document.getElementById("url").value.trim();
+      if (!u) return alert("Enter a URL first!");
+      const encoded = encodeURIComponent(u);
+      window.open(`/player.html?url=${encoded}`, "_blank");
+    };
+  </script>
+</body>
+</html>
