@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HLS Detector & Player</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;background:#0f1724;color:#e6eef8}
+    .card{background:#0b1220;padding:18px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.6)}
+    input,button,textarea{font:inherit}
+    .row{display:flex;gap:8px;margin-bottom:10px}
+    .grow{flex:1}
+    a.detected{display:inline-block;margin:6px 6px 0 0;padding:6px 10px;border-radius:6px;background:#112233;color:#9fe1ff;text-decoration:none}
+    .hint{color:#9aa8b8;font-size:13px;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>HLS (.m3u8) Player & Detector</h1>
+    <p>Paste an <code>.m3u8</code> URL below and click <strong>Play</strong>, or enable automatic detection for the current page (monkey-patches fetch/XHR).</p>
+
+    <div class="row">
+      <input id="url" class="grow" placeholder="https://.../stream.m3u8" />
+      <button id="play">Play</button>
+      <button id="detect">Enable Detect</button>
+    </div>
+
+    <div id="detectedList"></div>
+    <div class="hint">Tip: open this page in another tab for the console snippet to open player automatically.</div>
+  </div>
+
+  <script>
+    const playBtn = document.getElementById('play');
+    const urlInput = document.getElementById('url');
+    const detectBtn = document.getElementById('detect');
+    const detectedList = document.getElementById('detectedList');
+
+    function openPlayer(url){
+      const encoded = encodeURIComponent(url);
+      const target = `./player.html?url=${encoded}`;
+      window.open(target, '_blank');
+    }
+
+    playBtn.addEventListener('click', () => {
+      const u = urlInput.value.trim();
+      if(!u) return alert('Paste a .m3u8 url first.');
+      openPlayer(u);
+    });
+
+    // detector: monkey patch fetch and XHR to catch .m3u8 request URLs
+    let detecting = false;
+    detectBtn.addEventListener('click', () => {
+      if(detecting) return;
+      detecting = true;
+      detectBtn.textContent = 'Detecting...';
+      patchNetwork((url) => {
+        if(!url) return;
+        if(url.includes('.m3u8') || url.toLowerCase().includes('m3u8')) {
+          const link = document.createElement('a');
+          link.href = '#';
+          link.className = 'detected';
+          link.textContent = 'Detected: ' + url.split('/').pop();
+          link.onclick = (e) => { e.preventDefault(); openPlayer(url); };
+          detectedList.prepend(link);
+          console.log('%cDetected m3u8 ->', 'color:#9fe1ff', url);
+        }
+      });
+    });
+
+    function patchNetwork(onDetected) {
+      // patch fetch
+      const origFetch = window.fetch;
+      window.fetch = function(input, init){
+        try {
+          const u = typeof input === 'string' ? input : (input && input.url) || '';
+          if(u) onDetected(u);
+        } catch(e){}
+        return origFetch.apply(this, arguments);
+      };
+
+      // patch XMLHttpRequest
+      const OldXHR = window.XMLHttpRequest;
+      function PatchedXHR(){
+        const xr = new OldXHR();
+        const origOpen = xr.open;
+        xr.open = function(method, url){
+          try { if(url) onDetected(url); } catch(e){}
+          return origOpen.apply(this, arguments);
+        };
+        return xr;
+      }
+      window.XMLHttpRequest = PatchedXHR;
+    }
+  </script>
+</body>
+</html>
