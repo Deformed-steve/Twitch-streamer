@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HLS Player</title>
+  <style>
+    body,html{height:100%;margin:0;background:#000;color:#fff}
+    .controls{position:absolute;left:12px;top:12px;z-index:4}
+    .controls input{width:380px;padding:8px;border-radius:6px;border:none}
+    .player{width:100%;height:100vh;display:flex;align-items:center;justify-content:center}
+    video{max-width:100%;max-height:100vh;background:#000}
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <input id="u" placeholder="m3u8 url" />
+    <button id="go">Load</button>
+  </div>
+
+  <div class="player">
+    <video id="video" controls></video>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.8/dist/hls.min.js"></script>
+  <script>
+    function getParam(name) {
+      const p = new URLSearchParams(window.location.search);
+      return p.get(name);
+    }
+    const urlInput = document.getElementById('u');
+    const go = document.getElementById('go');
+    const video = document.getElementById('video');
+
+    async function load(url){
+      if(!url) return;
+      urlInput.value = url;
+      if(video.canPlayType('application/vnd.apple.mpegurl')) {
+        // native HLS (Safari, some browsers)
+        video.src = url;
+        await video.play().catch(()=>{});
+        return;
+      }
+      if(window.Hls && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+          video.play().catch(()=>{});
+        });
+        // optional: handle errors (network/level)
+        hls.on(Hls.Events.ERROR, function(event, data) {
+          console.warn('HLS error', data);
+        });
+        return;
+      }
+      // fallback: set src and try
+      video.src = url;
+      await video.play().catch(()=>{ console.warn('Play failed'); });
+    }
+
+    go.addEventListener('click', ()=> load(urlInput.value.trim()));
+
+    // auto-load from ?url=
+    const q = getParam('url');
+    if(q) {
+      try { load(decodeURIComponent(q)); } catch(e){ load(q); }
+    }
+  </script>
+</body>
+</html>
